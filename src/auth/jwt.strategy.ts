@@ -1,15 +1,13 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy, StrategyOptions } from 'passport-jwt';
+import { ExtractJwt, Strategy } from 'passport-jwt';
 import { DRIZZLE_TOKEN } from '../drizzle/drizzle.module';
 import { Inject } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import * as schema from '../drizzle/schema';
 import { users } from '../drizzle/schema';
 import { eq } from 'drizzle-orm';
-
-type UserWithoutPassword = Omit<typeof users.$inferSelect, 'password'>;
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -18,32 +16,38 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @Inject(DRIZZLE_TOKEN)
     private db: NodePgDatabase<typeof schema>,
   ) {
-    const jwtSecret = configService.get<string>('JWT_SECRET');
+    const secret = configService.get<string>('JWT_SECRET');
 
-    if (!jwtSecret) {
-      throw new Error('JWT_SECRET is not defined in environment variables');
+    if (!secret) {
+      throw new Error('JWT_SECRET is not defined');
     }
 
-    const options: StrategyOptions = {
+    super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret,
-    };
-    super(options);
+      secretOrKey: secret,
+    } as any); // Type assertion to resolve the type error
   }
 
-  async validate(payload: { sub: number }): Promise<UserWithoutPassword> {
-    const user = await this.db
-      .select()
-      .from(users)
-      .where(eq(users.id, payload.sub))
-      .then((res) => res[0]);
+  async validate(payload: any) {
+    try {
+      const user = await this.db
+        .select({
+          id: users.id,
+          email: users.email,
+          name: users.name,
+        })
+        .from(users)
+        .where(eq(users.id, payload.sub));
 
-    if (!user) {
-      throw new UnauthorizedException();
+      if (!user || user.length === 0) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      return user[0];
+    } catch (error) {
+      console.error('Error in JWT validation:', error);
+      throw new UnauthorizedException('Unable to validate token');
     }
-
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
   }
 }

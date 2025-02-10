@@ -15,6 +15,13 @@
       "when": 1739140911216,
       "tag": "0001_odd_human_fly",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1739161791753,
+      "tag": "0002_cheerful_domino",
+      "breakpoints": true
     }
   ]
 }
