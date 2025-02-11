@@ -1,10 +1,18 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DrizzleModule } from './drizzle/drizzle.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [DrizzleModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    DrizzleModule,
+    AuthModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
